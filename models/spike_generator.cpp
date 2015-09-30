@@ -253,7 +253,7 @@ void
 nest::spike_generator::init_state_( const Node& proto )
 {
   const spike_generator& pr = downcast< spike_generator >( proto );
-  
+
   device_.init_state( pr.device_ );
   S_ = pr.S_;
 }
@@ -323,6 +323,7 @@ nest::spike_generator::update( Time const& sliceT0, const long_t from, const lon
       long_t lag = Time( tnext_stamp - sliceT0 ).get_steps() - 1;
 
       // all spikes are sent locally, so offset information is always preserved
+      set_spiketime( Time::step( origin.get_steps() + lag + 1 ) );
       network()->send( *this, *se, lag );
       delete se;
     }
