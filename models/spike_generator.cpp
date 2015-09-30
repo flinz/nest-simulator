@@ -229,7 +229,7 @@ nest::spike_generator::Parameters_::set( const DictionaryDatum& d,
  * ---------------------------------------------------------------- */
 
 nest::spike_generator::spike_generator()
-  : Node()
+  : Archiving_Node()
   , device_()
   , P_()
   , S_()
@@ -237,7 +237,7 @@ nest::spike_generator::spike_generator()
 }
 
 nest::spike_generator::spike_generator( const spike_generator& n )
-  : Node( n )
+  : Archiving_Node( n )
   , device_( n.device_ )
   , P_( n.P_ )
   , S_( n.S_ )
@@ -253,7 +253,7 @@ void
 nest::spike_generator::init_state_( const Node& proto )
 {
   const spike_generator& pr = downcast< spike_generator >( proto );
-
+  
   device_.init_state( pr.device_ );
   S_ = pr.S_;
 }
@@ -262,6 +262,7 @@ void
 nest::spike_generator::init_buffers_()
 {
   device_.init_buffers();
+  Archiving_Node::clear_history();
 }
 
 void
@@ -328,6 +329,12 @@ nest::spike_generator::update( Time const& sliceT0, const long_t from, const lon
 
     ++S_.position_;
   }
+}
+
+void
+nest::spike_generator::handle( SpikeEvent& e )
+{
+  // Do nothing
 }
 
 void

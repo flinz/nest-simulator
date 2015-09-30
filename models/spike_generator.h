@@ -27,7 +27,7 @@
 #include <vector>
 #include "nest.h"
 #include "event.h"
-#include "node.h"
+#include "archiving_node.h"
 #include "scheduler.h"
 #include "stimulating_device.h"
 #include "connection.h"
@@ -36,6 +36,7 @@
 
 namespace nest
 {
+
 /*BeginDocumentation
   Name: spike_generator - A device which generates spikes from an array with spike-times.
 
@@ -171,7 +172,7 @@ namespace nest
  *
  * @ingroup Devices
  */
-class spike_generator : public Node
+class spike_generator : public Archiving_Node
 {
 
 public:
@@ -185,6 +186,12 @@ public:
   }
 
   port send_test_event( Node&, rport, synindex, bool );
+
+  using Node::handle;
+  using Node::handles_test_event;
+  void handle( SpikeEvent& );
+  port handles_test_event( SpikeEvent&, rport );
+  
   void get_status( DictionaryDatum& ) const;
   void set_status( const DictionaryDatum& );
 
@@ -192,7 +199,7 @@ public:
    * Import sets of overloaded virtual functions.
    * @see Technical Issues / Virtual Functions: Overriding, Overloading, and Hiding
    */
-  using Node::event_hook;
+  using Archiving_Node::event_hook;
   void event_hook( DSSpikeEvent& );
 
 private:
@@ -266,7 +273,7 @@ spike_generator::send_test_event( Node& target,
   rport receptor_type,
   synindex syn_id,
   bool dummy_target )
-{
+{ 
   device_.enforce_single_syn_type( syn_id );
 
   if ( dummy_target )
@@ -283,11 +290,20 @@ spike_generator::send_test_event( Node& target,
   }
 }
 
+inline port
+spike_generator::handles_test_event( SpikeEvent&, rport receptor_type )
+{
+  if ( receptor_type != 0 )
+    throw UnknownReceptorType( receptor_type, get_name() );
+  return 0;
+}
+
 inline void
 spike_generator::get_status( DictionaryDatum& d ) const
 {
   P_.get( d );
   device_.get_status( d );
+  Archiving_Node::get_status( d );
 }
 
 inline void
@@ -312,6 +328,7 @@ spike_generator::set_status( const DictionaryDatum& d )
 
   // if we get here, temporary contains consistent set of properties
   P_ = ptmp;
+  Archiving_Node::set_status( d );
 }
 
 
