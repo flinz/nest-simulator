@@ -40,25 +40,31 @@ import inspect
 import functools
 import textwrap
 
+import os
+# Don't decorate functions when building the documentation
+IS_SPHINX_BUILD = bool(os.getenv('SPHINX_BUILD'))
+
 # These flags are used to print deprecation warnings only once. The
 # corresponding functions will be removed in the 2.6 release of NEST.
 
 _deprecation_warning = {'BackwardCompatibilityConnect': True}
 
-def show_deprecation_warning(func_name, alt_func_name=None, text=None):        
-    if _deprecation_warning[func_name]:
-        if alt_func_name is None:
-            alt_func_name = 'Connect'
-        if text is None:
-            text = textwrap.dedent(
-                       """\
-                       {0} is deprecated and will be removed in a future version of NEST.
-                       Please use {1} instead!
-                       For details, see http://www.nest-simulator.org/connection_management\
-                       """.format(func_name, alt_func_name)
-                   )
+def get_deprecation_text(func_name, alt_func_name=None, text=None):
+    if alt_func_name is None:
+        alt_func_name = 'Connect'
+    if text is None:
+        text = textwrap.dedent(
+                   """\
+                   {0} is deprecated and will be removed in a future version of NEST.
+                   Please use {1} instead!
+                   For details, see http://www.nest-simulator.org/connection_management\
+                   """.format(func_name, alt_func_name)
+               )
+    return text
 
-        warnings.warn('\n' + text)   # add LF so text starts on new line
+def show_deprecation_warning(func_name, deprecation_text):        
+    if _deprecation_warning[func_name]:
+        warnings.warn('\n' + deprecation_text)   # add LF so text starts on new line
         _deprecation_warning[func_name] = False
 
 # Since we need to pass extra arguments to the decorator, we need a
@@ -72,11 +78,21 @@ def deprecated(alt_func_name, text=None):
     def deprecated_decorator(func):
         _deprecation_warning[func.__name__] = True
         
+        deprecation_text = get_deprecation_text(func.__name__, alt_func_name, text=text)
+
         @functools.wraps(func)
-        def new_func(*args, **kwargs):
-            show_deprecation_warning(func.__name__, alt_func_name, text=text)
+        def new_func(*args, **kwargs):    
+            show_deprecation_warning(func.__name__, deprecation_text)
             return func(*args, **kwargs)
-        return new_func
+
+        ret = func if IS_SPHINX_BUILD else new_func
+        ret.__doc__ = """%s
+
+            .. warning::
+                %s
+            """ % (ret.__doc__, deprecation_text.replace("\n", " "))
+
+        return ret
 
     return deprecated_decorator
 
@@ -148,7 +164,7 @@ def stack_checker(f):
                 raise kernel.NESTError(etext % eargs)
             return result
 
-    return stack_checker_func
+    return f if IS_SPHINX_BUILD else stack_checker_func
 
 
 def check_stack(thing):
