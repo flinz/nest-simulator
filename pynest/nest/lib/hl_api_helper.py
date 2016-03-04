@@ -42,7 +42,7 @@ import textwrap
 
 import os
 # Don't decorate functions when building the documentation
-IS_SPHINX_BUILD = bool(os.getenv('SPHINX_BUILD'))
+IS_SPHINX_BUILD = os.getenv('SPHINX_BUILD') in ['True', '1']
 
 # These flags are used to print deprecation warnings only once. The
 # corresponding functions will be removed in the 2.6 release of NEST.
