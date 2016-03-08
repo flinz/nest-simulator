@@ -25,6 +25,7 @@ Tests for error handling
 
 import unittest
 import nest
+import nest.lib.hl_api_errors as errors
 
 
 @nest.check_stack
@@ -48,32 +49,32 @@ class ErrorTestCase(unittest.TestCase):
 
         nest.ResetKernel()
 
-        self.assertRaisesRegex(
-            nest.NESTError, "StackUnderflow", nest.sli_run, 'clear ;')
+        self.assertRaises(
+            errors.NESTStackUnderflowError, nest.sli_run, 'clear ;')
 
     def test_DivisionByZero(self):
         """Division by zero"""
 
         nest.ResetKernel()
 
-        self.assertRaisesRegex(
-            nest.NESTError, "DivisionByZero", nest.sli_run, '1 0 div')
+        self.assertRaises(
+            errors.NESTDivisionByZeroError, nest.sli_run, '1 0 div')
 
     def test_UnknownNode(self):
         """Unknown node"""
 
         nest.ResetKernel()
 
-        self.assertRaisesRegex(
-            nest.NESTError, "UnknownNode", nest.Connect, (99, ), (99, ))
+        self.assertRaises(
+            nest.NESTUnknownNodeError, nest.Connect, (99, ), (99, ))
 
     def test_UnknownModel(self):
         """Unknown model name"""
 
         nest.ResetKernel()
 
-        self.assertRaisesRegex(
-            nest.NESTError, "UnknownModelName", nest.Create, -1)
+        self.assertRaises(
+            nest.NESTUnknownModelNameError, nest.Create, -1)
 
 
 def suite():

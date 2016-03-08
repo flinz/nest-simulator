@@ -38,6 +38,8 @@ from cpython cimport array
 from cpython.ref cimport PyObject
 from cpython.object cimport Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
+import nest.lib.hl_api_errors as errors
+from nest.lib.hl_api_errors import NESTError
 
 cdef string SLI_TYPE_BOOL = "booltype"
 cdef string SLI_TYPE_INTEGER = "integertype"
@@ -74,11 +76,6 @@ try:
     HAVE_NUMPY = True
 except ImportError:
     pass
-
-
-class NESTError(Exception):
-    pass
-
 
 cdef class SLIDatum(object):
 

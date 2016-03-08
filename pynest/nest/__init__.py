@@ -87,6 +87,11 @@ def catching_sli_run(cmd):
         message = sli_pop()
         commandname = sli_pop()
         engine.run('clear')
+
+        if errorname and errorname in errors.ERROR_MAP:
+            raise errors.ERROR_MAP[errorname](
+                "%s: %s" % (commandname, message)
+            )
         raise _kernel.NESTError("{0} in {1}{2}".format(
             errorname, commandname, message))
 
