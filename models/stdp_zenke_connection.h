@@ -194,32 +194,29 @@ public:
   }
 
 private:
-  inline double
-  facilitate_( double w, double kplus, double ky )
-  {
-    double new_w = std::abs( w ) + kplus * ( Aplus_ + Aplus_triplet_ * ky );
-    return copysign( new_w < std::abs( Wmax_ ) ? new_w : Wmax_, Wmax_ );
-  }
 
-  inline double
-  depress_( double w, double kminus, double Kplus_triplet_ )
-  {
-    double new_w =
-      std::abs( w ) - kminus * ( Aminus_ + Aminus_triplet_ * Kplus_triplet_ );
-    return copysign( new_w > 0.0 ? new_w : 0.0, Wmax_ );
-  }
-
-  // data members of each connection
-  double weight_;
-  double tau_plus_;
-  double tau_plus_triplet_;
-  double Aplus_;
-  double Aminus_;
-  double Aplus_triplet_;
-  double Aminus_triplet_;
-  double Kplus_;
-  double Kplus_triplet_;
+  // Parameters
+  double A_;
+  double P_;
+  double beta_;
+  double delta_;
   double Wmax_;
+  double dt_slow_;
+
+  // States
+  double weight_;
+  double w_tilde_;
+  double w_tilde_last_t_;
+  double C_;
+  double z_j_plus_;
+  double z_i_ht_;
+  
+  // Timescales
+  double tau_plus_;
+  double tau_slow_;
+  double tau_ht_;
+  double tau_hom_;
+  
 };
 
 /**
@@ -241,44 +238,44 @@ STDPZenkeConnection< targetidentifierT >::send( Event& e,
   double dendritic_delay = get_delay();
   Node* target = get_target( t );
 
-  // get spike history in relevant range (t1, t2] from post-synaptic neuron
-  std::deque< histentry >::iterator start;
-  std::deque< histentry >::iterator finish;
-  target->get_history(
-    t_lastspike - dendritic_delay, t_spike - dendritic_delay, &start, &finish );
+  // // get spike history in relevant range (t1, t2] from post-synaptic neuron
+  // std::deque< histentry >::iterator start;
+  // std::deque< histentry >::iterator finish;
+  // target->get_history(
+  //   t_lastspike - dendritic_delay, t_spike - dendritic_delay, &start, &finish );
 
-  // facilitation due to post-synaptic spikes since last pre-synaptic spike
-  while ( start != finish )
-  {
-    // post-synaptic spike is delayed by dendritic_delay so that
-    // it is effectively late by that much at the synapse.
-    double minus_dt = t_lastspike - ( start->t_ + dendritic_delay );
+  // // facilitation due to post-synaptic spikes since last pre-synaptic spike
+  // while ( start != finish )
+  // {
+  //   // post-synaptic spike is delayed by dendritic_delay so that
+  //   // it is effectively late by that much at the synapse.
+  //   double minus_dt = t_lastspike - ( start->t_ + dendritic_delay );
 
-    // subtract 1.0 yields the triplet_Kminus value just prior to
-    // the post synaptic spike, implementing the t-epsilon in
-    // Pfister et al, 2006
-    double ky = start->triplet_Kminus_ - 1.0;
-    ++start;
-    if ( minus_dt == 0 )
-    {
-      continue;
-    }
+  //   // subtract 1.0 yields the triplet_Kminus value just prior to
+  //   // the post synaptic spike, implementing the t-epsilon in
+  //   // Pfister et al, 2006
+  //   double ky = start->triplet_Kminus_ - 1.0;
+  //   ++start;
+  //   if ( minus_dt == 0 )
+  //   {
+  //     continue;
+  //   }
 
-    weight_ =
-      facilitate_( weight_, Kplus_ * std::exp( minus_dt / tau_plus_ ), ky );
-  }
+  //   weight_ =
+  //     facilitate_( weight_, Kplus_ * std::exp( minus_dt / tau_plus_ ), ky );
+  // }
 
-  // depression due to new pre-synaptic spike
-  Kplus_triplet_ *= std::exp( ( t_lastspike - t_spike ) / tau_plus_triplet_ );
+  // // depression due to new pre-synaptic spike
+  // Kplus_triplet_ *= std::exp( ( t_lastspike - t_spike ) / tau_plus_triplet_ );
 
-  // dendritic delay means we must look back in time by that amount
-  // for determining the K value, because the K value must propagate
-  // out to the synapse
-  weight_ = depress_(
-    weight_, target->get_K_value( t_spike - dendritic_delay ), Kplus_triplet_ );
+  // // dendritic delay means we must look back in time by that amount
+  // // for determining the K value, because the K value must propagate
+  // // out to the synapse
+  // weight_ = depress_(
+  //   weight_, target->get_K_value( t_spike - dendritic_delay ), Kplus_triplet_ );
 
-  Kplus_triplet_ += 1.0;
-  Kplus_ = Kplus_ * std::exp( ( t_lastspike - t_spike ) / tau_plus_ ) + 1.0;
+  // Kplus_triplet_ += 1.0;
+  // Kplus_ = Kplus_ * std::exp( ( t_lastspike - t_spike ) / tau_plus_ ) + 1.0;
 
   e.set_receiver( *target );
   e.set_weight( weight_ );
@@ -291,16 +288,24 @@ STDPZenkeConnection< targetidentifierT >::send( Event& e,
 template < typename targetidentifierT >
 STDPZenkeConnection< targetidentifierT >::STDPZenkeConnection()
   : ConnectionBase()
-  , weight_( 1.0 )
-  , tau_plus_( 16.8 )
-  , tau_plus_triplet_( 101.0 )
-  , Aplus_( 5e-10 )
-  , Aminus_( 7e-3 )
-  , Aplus_triplet_( 6.2e-3 )
-  , Aminus_triplet_( 2.3e-4 )
-  , Kplus_( 0.0 )
-  , Kplus_triplet_( 0.0 )
+  , A_( 1.0 )
+  , P_( 1.0 )
+  , beta_( 1.0 )
+  , delta_( 1.0 )
   , Wmax_( 100.0 )
+  , dt_slow_( 1200.0 )
+
+  , weight_( 1.0 )
+  , w_tilde_( 1.0 )
+  , w_tilde_last_t_( 0. )
+  , C_( 1.0 )
+  , z_j_plus_( 1.0 )
+  , z_i_ht_( 1.0 )
+  
+  , tau_plus_( 100.0 )
+  , tau_slow_( 100.0 )
+  , tau_ht_( 100.0 )
+  , tau_hom_( 100.0 )
 {
 }
 
@@ -308,16 +313,22 @@ template < typename targetidentifierT >
 STDPZenkeConnection< targetidentifierT >::STDPZenkeConnection(
   const STDPZenkeConnection< targetidentifierT >& rhs )
   : ConnectionBase( rhs )
-  , weight_( rhs.weight_ )
-  , tau_plus_( rhs.tau_plus_ )
-  , tau_plus_triplet_( rhs.tau_plus_triplet_ )
-  , Aplus_( rhs.Aplus_ )
-  , Aminus_( rhs.Aminus_ )
-  , Aplus_triplet_( rhs.Aplus_triplet_ )
-  , Aminus_triplet_( rhs.Aminus_triplet_ )
-  , Kplus_( rhs.Kplus_ )
-  , Kplus_triplet_( rhs.Kplus_triplet_ )
+  , A_( rhs.A_ )
+  , P_( rhs.P_ )
+  , beta_( rhs.beta_ )
+  , delta_( rhs.delta_ )
   , Wmax_( rhs.Wmax_ )
+  , dt_slow_( rhs.dt_slow_ )
+  , weight_( rhs.weight_ )
+  , w_tilde_( rhs.w_tilde_ )
+  , w_tilde_last_t_( rhs.w_tilde_last_t_ )
+  , C_( rhs.C_ )
+  , z_j_plus_( rhs.z_j_plus_ )
+  , z_i_ht_( rhs.z_i_ht_ )
+  , tau_plus_( rhs.tau_plus_ )
+  , tau_slow_( rhs.tau_slow_ )
+  , tau_ht_( rhs.tau_ht_ )
+  , tau_hom_( rhs.tau_hom_ )
 {
 }
 
@@ -327,16 +338,22 @@ STDPZenkeConnection< targetidentifierT >::get_status(
   DictionaryDatum& d ) const
 {
   ConnectionBase::get_status( d );
-  def< double >( d, names::weight, weight_ );
-  def< double >( d, "tau_plus", tau_plus_ );
-  def< double >( d, "tau_plus_triplet", tau_plus_triplet_ );
-  def< double >( d, "Aplus", Aplus_ );
-  def< double >( d, "Aminus", Aminus_ );
-  def< double >( d, "Aplus_triplet", Aplus_triplet_ );
-  def< double >( d, "Aminus_triplet", Aminus_triplet_ );
-  def< double >( d, "Kplus", Kplus_ );
-  def< double >( d, "Kplus_triplet", Kplus_triplet_ );
+  def< double >( d, "A", A_ );
+  def< double >( d, "P", P_ );
+  def< double >( d, "beta", beta_ );
+  def< double >( d, "delta", delta_ );
   def< double >( d, "Wmax", Wmax_ );
+  def< double >( d, "dt_slow_", dt_slow_ );
+  def< double >( d, names::weight, weight_ );
+  def< double >( d, "w_tilde", w_tilde_ );
+  def< double >( d, "w_tilde_last_t", w_tilde_last_t_ );
+  def< double >( d, "C", C_ );
+  def< double >( d, "z_j_plus", z_j_plus_ );
+  def< double >( d, "z_i_ht", z_i_ht_ );
+  def< double >( d, "tau_plus", tau_plus_ );
+  def< double >( d, "tau_slow", tau_slow_ );
+  def< double >( d, "tau_ht", tau_ht_ );
+  def< double >( d, "tau_hom", tau_hom_ );
 }
 
 template < typename targetidentifierT >
@@ -346,16 +363,22 @@ STDPZenkeConnection< targetidentifierT >::set_status(
   ConnectorModel& cm )
 {
   ConnectionBase::set_status( d, cm );
-  updateValue< double >( d, names::weight, weight_ );
-  updateValue< double >( d, "tau_plus", tau_plus_ );
-  updateValue< double >( d, "tau_plus_triplet", tau_plus_triplet_ );
-  updateValue< double >( d, "Aplus", Aplus_ );
-  updateValue< double >( d, "Aminus", Aminus_ );
-  updateValue< double >( d, "Aplus_triplet", Aplus_triplet_ );
-  updateValue< double >( d, "Aminus_triplet", Aminus_triplet_ );
-  updateValue< double >( d, "Kplus", Kplus_ );
-  updateValue< double >( d, "Kplus_triplet", Kplus_triplet_ );
+  updateValue< double >( d, "A", A_ );
+  updateValue< double >( d, "P", P_ );
+  updateValue< double >( d, "beta", beta_ );
+  updateValue< double >( d, "delta", delta_ );
   updateValue< double >( d, "Wmax", Wmax_ );
+  updateValue< double >( d, "dt_slow_", dt_slow_ );
+  updateValue< double >( d, names::weight, weight_ );
+  updateValue< double >( d, "w_tilde", w_tilde_ );
+  updateValue< double >( d, "w_tilde_last_t", w_tilde_last_t_ );
+  updateValue< double >( d, "C", C_ );
+  updateValue< double >( d, "z_j_plus", z_j_plus_ );
+  updateValue< double >( d, "z_i_ht", z_i_ht_ );
+  updateValue< double >( d, "tau_plus", tau_plus_ );
+  updateValue< double >( d, "tau_slow", tau_slow_ );
+  updateValue< double >( d, "tau_ht", tau_ht_ );
+  updateValue< double >( d, "tau_hom", tau_hom_ );
 
   // check if weight_ and Wmax_ has the same sign
   if ( not( ( ( weight_ >= 0 ) - ( weight_ < 0 ) )
@@ -364,17 +387,9 @@ STDPZenkeConnection< targetidentifierT >::set_status(
     throw BadProperty( "Weight and Wmax must have same sign." );
   }
 
-  if ( not( Kplus_ >= 0 ) )
-  {
-    throw BadProperty( "State Kplus must be positive." );
-  }
-
-  if ( not( Kplus_triplet_ >= 0 ) )
-  {
-    throw BadProperty( "State Kplus_triplet must be positive." );
-  }
+  // check other states
 }
 
 } // of namespace nest
 
-#endif // of #ifndef STDP_TRIPLET_CONNECTION_H
+#endif // of #ifnupdateValue STDP_TRIPLET_CONNECTION_H
