@@ -201,7 +201,8 @@ private:
   double beta_;
   double delta_;
   double Wmax_;
-  double dt_slow_;
+  double dt_fast_;
+  double dt_slow_;  
 
   // States
   double weight_;
@@ -238,45 +239,46 @@ STDPZenkeConnection< targetidentifierT >::send( Event& e,
   double dendritic_delay = get_delay();
   Node* target = get_target( t );
 
-  // // get spike history in relevant range (t1, t2] from post-synaptic neuron
-  // std::deque< histentry >::iterator start;
-  // std::deque< histentry >::iterator finish;
-  // target->get_history(
-  //   t_lastspike - dendritic_delay, t_spike - dendritic_delay, &start, &finish );
+  // get spike history in relevant range (t1, t2] from post-synaptic neuron
+  std::deque< histentry >::iterator start;
+  std::deque< histentry >::iterator finish;
+  
+  // integration of synapse state starts from the last spike received
+  long t_last_postspike = t_lastspike + dendritic_delay;
 
-  // // facilitation due to post-synaptic spikes since last pre-synaptic spike
-  // while ( start != finish )
-  // {
-  //   // post-synaptic spike is delayed by dendritic_delay so that
-  //   // it is effectively late by that much at the synapse.
-  //   double minus_dt = t_lastspike - ( start->t_ + dendritic_delay );
+  target->get_history(
+    t_lastspike - dendritic_delay, t_spike - dendritic_delay, &start, &finish );
 
-  //   // subtract 1.0 yields the triplet_Kminus value just prior to
-  //   // the post synaptic spike, implementing the t-epsilon in
-  //   // Pfister et al, 2006
-  //   double ky = start->triplet_Kminus_ - 1.0;
-  //   ++start;
-  //   if ( minus_dt == 0 )
-  //   {
-  //     continue;
-  //   }
+  // facilitation due to post-synaptic spikes since last pre-synaptic spike
+  while ( start != finish )
+  {
+    // post-synaptic spike is delayed by dendritic_delay so that
+    // it is effectively late by that much at the synapse.
+    long delta = Time( Time::ms( start->t_ + dendritic_delay - t_last_postspike ) ).get_steps();
 
-  //   weight_ =
-  //     facilitate_( weight_, Kplus_ * std::exp( minus_dt / tau_plus_ ), ky );
-  // }
+    long_t delta_done = 0;
+    while ( delta_done < delta )
+    {
+      // how many steps are left to be processed?
+      long_t delta_this = delta - delta_done;
 
-  // // depression due to new pre-synaptic spike
-  // Kplus_triplet_ *= std::exp( ( t_lastspike - t_spike ) / tau_plus_triplet_ );
+      // state variable integration, only for existing contacts
+      if ( delta_this > 0 )
+      {
 
-  // // dendritic delay means we must look back in time by that amount
-  // // for determining the K value, because the K value must propagate
-  // // out to the synapse
-  // weight_ = depress_(
-  //   weight_, target->get_K_value( t_spike - dendritic_delay ), Kplus_triplet_ );
+        // increment the step counter of the loop over delta
+        delta_done += delta_this;
+      }
+    }
 
-  // Kplus_triplet_ += 1.0;
-  // Kplus_ = Kplus_ * std::exp( ( t_lastspike - t_spike ) / tau_plus_ ) + 1.0;
+    t_last_postspike = start->t_ + dendritic_delay;
+    ++start;
+  }
 
+  long remaining_delta = Time( Time::ms( t_spike - t_last_postspike ) ).get_steps();
+
+  // integrate remaining
+  
   e.set_receiver( *target );
   e.set_weight( weight_ );
   e.set_delay( get_delay_steps() );
@@ -294,6 +296,7 @@ STDPZenkeConnection< targetidentifierT >::STDPZenkeConnection()
   , delta_( 1.0 )
   , Wmax_( 100.0 )
   , dt_slow_( 1200.0 )
+  , dt_fast_( 0.1 )
 
   , weight_( 1.0 )
   , w_tilde_( 1.0 )
@@ -319,6 +322,7 @@ STDPZenkeConnection< targetidentifierT >::STDPZenkeConnection(
   , delta_( rhs.delta_ )
   , Wmax_( rhs.Wmax_ )
   , dt_slow_( rhs.dt_slow_ )
+  , dt_fast_( rhs.dt_fast_ )
   , weight_( rhs.weight_ )
   , w_tilde_( rhs.w_tilde_ )
   , w_tilde_last_t_( rhs.w_tilde_last_t_ )
@@ -344,6 +348,7 @@ STDPZenkeConnection< targetidentifierT >::get_status(
   def< double >( d, "delta", delta_ );
   def< double >( d, "Wmax", Wmax_ );
   def< double >( d, "dt_slow_", dt_slow_ );
+  def< double >( d, "dt_fast_", dt_fast_ );
   def< double >( d, names::weight, weight_ );
   def< double >( d, "w_tilde", w_tilde_ );
   def< double >( d, "w_tilde_last_t", w_tilde_last_t_ );
@@ -369,6 +374,7 @@ STDPZenkeConnection< targetidentifierT >::set_status(
   updateValue< double >( d, "delta", delta_ );
   updateValue< double >( d, "Wmax", Wmax_ );
   updateValue< double >( d, "dt_slow_", dt_slow_ );
+  updateValue< double >( d, "dt_fast_", dt_fast_ );
   updateValue< double >( d, names::weight, weight_ );
   updateValue< double >( d, "w_tilde", w_tilde_ );
   updateValue< double >( d, "w_tilde_last_t", w_tilde_last_t_ );
