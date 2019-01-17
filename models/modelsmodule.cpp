@@ -51,6 +51,7 @@
 #include "hh_psc_alpha.h"
 #include "hh_psc_alpha_gap.h"
 #include "ht_neuron.h"
+#include "ht_neuron_compte.h"
 #include "iaf_chs_2007.h"
 #include "iaf_chxk_2008.h"
 #include "iaf_cond_alpha.h"
@@ -110,6 +111,7 @@
 #include "tsodyks_connection.h"
 #include "tsodyks_connection_hom.h"
 #include "tsodyks2_connection.h"
+#include "tsodyks_mongillo_connection.h"
 #include "quantal_stp_connection.h"
 #include "quantal_stp_connection_impl.h"
 #include "stdp_connection.h"
@@ -290,6 +292,7 @@ ModelsModule::init( SLIInterpreter* )
   register_model< aeif_cond_alpha >( net_, "aeif_cond_alpha" );
   register_model< aeif_cond_exp >( net_, "aeif_cond_exp" );
   register_model< ht_neuron >( net_, "ht_neuron" );
+  register_model< ht_neuron_compte >( net_, "ht_neuron_compte" );
 #endif
   // This version of the AdEx model does not depend on GSL.
   register_model< aeif_cond_alpha_RK5 >( net_, "aeif_cond_alpha_RK5" );
@@ -437,6 +440,14 @@ ModelsModule::init( SLIInterpreter* )
   register_connection_model< Tsodyks2Connection< TargetIdentifierIndex > >(
     net_, "tsodyks2_synapse_hpc" );
 
+  /* BeginDocumentation
+     Name: tsodyks_mongillo_synapse_hpc - Variant of tsodyks_mongillo_synapse with low memory consumption.
+     SeeAlso: synapsedict, tsodyks_mongillo_synapse, static_synapse_hpc
+  */
+  register_connection_model< TsodyksMongilloConnection< TargetIdentifierPtrRport > >(
+    net_, "tsodyks_mongillo_synapse" );
+  register_connection_model< TsodyksMongilloConnection< TargetIdentifierIndex > >(
+    net_, "tsodyks_mongillo_synapse_hpc" );
 
   /* BeginDocumentation
      Name: ht_synapse_hpc - Variant of ht_synapse with low memory consumption.

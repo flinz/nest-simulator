@@ -35,6 +35,7 @@ libmodelsmodule_la_SOURCES= \
 		hh_psc_alpha_gap.h hh_psc_alpha_gap.cpp\
 		ht_connection.h\
 		ht_neuron.h ht_neuron.cpp\
+		ht_neuron_compte.h ht_neuron_compte.cpp\
 		iaf_chxk_2008.cpp iaf_chxk_2008.h\
 		iaf_chs_2007.cpp iaf_chs_2007.h\
 		iaf_cond_alpha.h iaf_cond_alpha.cpp\
@@ -83,6 +84,7 @@ libmodelsmodule_la_SOURCES= \
 		stdp_triplet_connection.h\
 		step_current_generator.h step_current_generator.cpp\
 		tsodyks2_connection.h\
+		tsodyks_mongillo_connection.h\
 		tsodyks_connection.h\
 		tsodyks_connection_hom.h tsodyks_connection_hom.cpp\
 		volume_transmitter.h volume_transmitter.cpp\
